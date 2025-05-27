@@ -112,6 +112,32 @@ def mtree():
             assert not line, "unexpected line: %r" % line
     return {name: FlatView.parse(body) for name, body in views.items()}
 
+def parse_address_ranges_file(path):
+    """
+    Parse an address range file of the following format and return a list of all injectable addresses:
+
+        0x0000000002800000-0x0000000002a00000
+        0x0000000003400000-0x0000000003800000
+    """
+    address_list = []
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or '-' not in line:
+                continue
+            try:
+                start_str, end_str = line.split("-")
+                start = int(start_str, 16)
+                end = int(end_str, 16)
+                address_list.extend(range(start, end, 1))  # 每 1 字节为单位注入
+            except Exception as e:
+                print(f"Invalid line in range file: {line} ({e})")
+    return address_list
+
+
+
+
+
 cached_reg_list = None
 
 def list_registers():
@@ -519,3 +545,45 @@ Usage: loop <times> <command> <args>
         gdb.execute(actions)
 
 
+
+@BuildCmd
+def appinject(args):
+    """Inject bitflips at addresses loaded from a file.
+    
+    Need to be used with find_phys_ranges.py
+Usage:
+    appinject <count> <range_file>
+        <count>: number of random bitflip injections to perform
+        <range_file>: path to the file that contains address ranges
+        
+    """
+
+    args = args.strip().split(" ")
+    if len(args) != 2:
+        print("usage: appinject <count> <range_file>")
+        return
+
+    path = args[1]
+    try:
+        count = int(args[0])
+        if count <= 0:
+            raise ValueError
+    except ValueError:
+        print("Invalid count")
+        return
+
+    addresses = parse_address_ranges_file(path)
+    if len(addresses) == 0:
+        print("No valid addresses found in file.")
+        return
+    if count > len(addresses):
+        print(f"Requested {count} injections, but only {len(addresses)} addresses found.")
+        return
+
+    print(f"Performing {count} bitflip injections from {len(addresses)} available addresses...")
+    targets = random.sample(addresses, count)
+    for address in targets:
+        try:
+            inject_bitflip(address, 1)
+        except Exception as e:
+            print(f"Injection failed at 0x{address:x}: {e}")
