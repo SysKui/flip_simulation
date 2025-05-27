@@ -353,3 +353,47 @@ Usage: loop --times <num> --command <cmd> [--command-args <args>...]
     
     for _ in range(times):
         gdb.execute(actions)
+
+
+
+@BuildCmd
+def appinject(args):
+    """Inject bitflips at addresses loaded from a file.
+    
+    Need to be used with find_phys_ranges.py
+Usage:
+    appinject <count> <range_file>
+        <count>: number of random bitflip injections to perform
+        <range_file>: path to the file that contains address ranges
+        
+    """
+
+    args = args.strip().split(" ")
+    if len(args) != 2:
+        print("usage: appinject <count> <range_file>")
+        return
+
+    path = args[1]
+    try:
+        count = int(args[0])
+        if count <= 0:
+            raise ValueError
+    except ValueError:
+        print("Invalid count")
+        return
+
+    addresses = parse_address_ranges_file(path)
+    if len(addresses) == 0:
+        print("No valid addresses found in file.")
+        return
+    if count > len(addresses):
+        print(f"Requested {count} injections, but only {len(addresses)} addresses found.")
+        return
+
+    print(f"Performing {count} bitflip injections from {len(addresses)} available addresses...")
+    targets = random.sample(addresses, count)
+    for address in targets:
+        try:
+            inject_bitflip(address, 1)
+        except Exception as e:
+            print(f"Injection failed at 0x{address:x}: {e}")
