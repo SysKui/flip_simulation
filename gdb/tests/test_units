@@ -1,0 +1,12 @@
+maintenance packet Qqemu.PhyMemMode:1
+source gdb/fliputils.py
+loginject --filename /tmp/inject_position.csv
+inject --address 0x50000000 --bytewidth 4 --bit 3
+inject_reg --register pc --bit 3
+autoinject --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type ram
+autoinject --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type reg
+snapinject --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type ram --observe-time 10s
+snapinject --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type reg --observe-time 10s
+snapinject_custom --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type ram --fault-location 0x90000000 --bit-index 1 --observe-time 10s
+snapinject_custom --total-fault-number 10 --min-interval 100ms --max-interval 100ms --fault-type reg --fault-location pc --bit-index 3 --observe-time 10s --snapshot-tag my_snapshot
+loop --times 3 --command inject --command-args "--address 0x50000000 --bytewidth 4 --bit 3"
