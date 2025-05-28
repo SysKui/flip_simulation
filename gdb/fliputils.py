@@ -329,6 +329,27 @@ Supported fault type and fault location:
         qemu_hmp("delvm %s" % tmpname)
         print("Delete tmp VM checkpoint")
 
+def parse_address_ranges_file(path):
+    """
+    Parse an address range file of the following format and return a list of all injectable addresses:
+        0x0000000002800000-0x0000000002a00000
+        0x0000000003400000-0x0000000003800000
+    """
+    address_list = []
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or '-' not in line:
+                continue
+            try:
+                start_str, end_str = line.split("-")
+                start = int(start_str, 16)
+                end = int(end_str, 16)
+                address_list.extend(range(start, end, 1))  # 每 1 字节为单位注入
+            except Exception as e:
+                print(f"Invalid line in range file: {line} ({e})")
+    return address_list
+
 
 @BuildCmd
 def loop(args):
