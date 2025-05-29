@@ -379,6 +379,7 @@ Usage: loop --times <num> --command <cmd> [--command-args <args>...]
 
 @BuildCmd
 def appinject(args):
+    # TODO: Use argparse to parse the param here
     """Inject bitflips at addresses loaded from a file.
     
     Need to be used with find_phys_ranges.py
@@ -389,14 +390,17 @@ Usage:
         
     """
 
-    args = args.strip().split(" ")
-    if len(args) != 2:
-        print("usage: appinject <count> <range_file>")
+    parser = argparse.ArgumentParser(description="Inject bitflips at address loaded from a file", prog="appinject")\
+        .add_argument("--total-fault-number", type=int, help="total fault number", required=True)\
+        .add_argument("--range-file", help="Description file of app memory map", required=True)
+    
+    parsed = parse_args_safely(parser, args)
+    if parsed is None:
         return
 
-    path = args[1]
+    path = parsed.range_file
     try:
-        count = int(args[0])
+        count = int(parsed.total_fault_number)
         if count <= 0:
             raise ValueError
     except ValueError:
