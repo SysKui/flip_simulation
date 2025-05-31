@@ -1,22 +1,22 @@
+import argparse
 import os
+import random
 import sys
+import time
+import uuid
+
+import gdb
 
 # add path to sys.path to find modules in the same dir.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-import argparse
-import random
-import time
-import uuid
 from parser import parse_args_safely
 
 from buildcmd import BuildCmd
 from logger import init_logger
 from qemu_utils import *
-
-import gdb
 
 
 @BuildCmd
