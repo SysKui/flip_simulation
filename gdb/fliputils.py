@@ -222,28 +222,27 @@ def autoinject(args):
     duration = etime - stime
     print("Total injection duration: %.3f s" % duration)
 
-
 @BuildCmd
 def snapinject(args):
-    """Record the current VM state, then automatically inject faults according to the user-provided fault count, fault type, and fault interval.
+    """Record the current VM state, then automatically inject faults according to the user-provided fault count, fault location, and fault interval.
     After the faults are injected, wait for a while and then revert to the previous VM state, delete the tmp checkpoint.
-    If snapshot_tag is specified, load the snapshot before injecting faults, and do not revert to the previous VM state after injecting faults.
-
-    Usage: snapinject --total-fault-number <num> --min-interval <time> --max-interval <time> --fault-type <type> --observe-time <time> [--snapshot-tag <tag>]
-
+    Usage: snapinject --total-fault-number <num> --min-interval <time> --max-interval <time> --fault-type <type> --fault-location <location> --bit-index <bit> --observe-time <time> [--snapshot-tag <tag>]
     Example:
-        snapinject --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type ram --observe-time 10s
-        snapinject --total-fault-number 10 --min-interval 100ms --max-interval 100ms --fault-type reg --observe-time 10s --snapshot-tag my_snapshot
+        snapinject --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type ram --fault-location 0x00500000 --bit-index 1 --observe-time 10s
+        snapinject --total-fault-number 10 --min-interval 100ms --max-interval 100ms --fault-type reg --fault-location pc --bit-index 3 --observe-time 10s --snapshot-tag my_snapshot
 
     Supported time units: default is ns. Time format: 10s, 244ms and etc.
     1. ns: nanosecond
     2. us: microsecond
     3. ms: millisecond
     4. s: second
-    5. m: minute"""
-
+    5. m: minute
+    Supported fault type and fault location:
+    1. ram, address: inject fault in RAM, location is "address"
+    2. reg, regname: inject fault in Registers, target is "regname"
+    """
     parser = argparse.ArgumentParser(
-        description="Snapshot-based fault injection",
+        description="Custom snapshot-based fault injection with specific location",
         prog="snapinject",
     )
     parser.add_argument(
@@ -269,114 +268,12 @@ def snapinject(args):
         help="Type of fault to inject",
     )
     parser.add_argument(
-        "--observe-time",
-        required=True,
-        help="Time to observe after injection (with unit: ns, us, ms, s, m)",
-    )
-    parser.add_argument(
-        "--snapshot-tag",
-        help="Optional snapshot tag (if not provided, creates temporary snapshot)",
-    )
-
-    parsed = parse_args_safely(parser, args)
-    if parsed is None:
-        return
-
-    try:
-        times = getattr(parsed, "total_fault_number")
-        assert times >= 1, "fatal: times < 1"
-        mint = parse_time(getattr(parsed, "min_interval"))
-        maxt = parse_time(getattr(parsed, "max_interval"))
-        assert 0 < mint <= maxt, "fatal: min_interval > max_interval"
-        ftype = getattr(parsed, "fault_type")
-        obtime = parse_time(getattr(parsed, "observe_time"))
-    except (ValueError, AssertionError) as e:
-        print("Error: %s" % str(e))
-        return
-
-    tmpname = uuid.uuid4()
-
-    snapname = (
-        getattr(parsed, "snapshot_tag") if getattr(parsed, "snapshot_tag") else tmpname
-    )
-    if snapname == tmpname:
-        qemu_hmp("savevm %s" % snapname)
-        print("Create a tmp checkpoint %s" % snapname)
-    else:
-        qemu_hmp("loadvm %s" % snapname)
-        print("Load checkpoint %s" % snapname)
-
-    stime = time.time()
-    autoinject_inner(times, mint, maxt, ftype)
-    etime = time.time()
-    duration = etime - stime
-    print("Total injection duration: %.3f s" % duration)
-
-    print("Observing VM %s" % getattr(parsed, "observe_time"))
-    step_ns(obtime)
-    print("time up.")
-
-    if snapname == tmpname:
-        # Revert to the previous VM state
-        qemu_hmp("loadvm %s" % snapname)
-        print("Back to checkpoint %s finished." % snapname)
-        # Del this tmp VM checkpoint
-        qemu_hmp("delvm %s" % tmpname)
-        print("Delete tmp VM checkpoint")
-
-
-@BuildCmd
-def snapinject_custom(args):
-    """Record the current VM state, then automatically inject faults according to the user-provided fault count, fault location, and fault interval.
-    After the faults are injected, wait for a while and then revert to the previous VM state, delete the tmp checkpoint.
-    Usage: snapinject_custom --total-fault-number <num> --min-interval <time> --max-interval <time> --fault-type <type> --fault-location <location> --bit-index <bit> --observe-time <time> [--snapshot-tag <tag>]
-    Example:
-        snapinject_custom --total-fault-number 10 --min-interval 100ms --max-interval 200ms --fault-type ram --fault-location 0x00500000 --bit-index 1 --observe-time 10s
-        snapinject_custom --total-fault-number 10 --min-interval 100ms --max-interval 100ms --fault-type reg --fault-location pc --bit-index 3 --observe-time 10s --snapshot-tag my_snapshot
-
-    Supported time units: default is ns. Time format: 10s, 244ms and etc.
-    1. ns: nanosecond
-    2. us: microsecond
-    3. ms: millisecond
-    4. s: second
-    5. m: minute
-    Supported fault type and fault location:
-    1. ram, address: inject fault in RAM, provide address
-    2. reg, regname: inject fault in Registers, provide register name
-    """
-    parser = argparse.ArgumentParser(
-        description="Custom snapshot-based fault injection with specific location",
-        prog="snapinject_custom",
-    )
-    parser.add_argument(
-        "--total-fault-number",
-        type=int,
-        required=True,
-        help="Total number of faults to inject",
-    )
-    parser.add_argument(
-        "--min-interval",
-        required=True,
-        help="Minimum interval between injections (with unit: ns, us, ms, s, m)",
-    )
-    parser.add_argument(
-        "--max-interval",
-        required=True,
-        help="Maximum interval between injections (with unit: ns, us, ms, s, m)",
-    )
-    parser.add_argument(
-        "--fault-type",
-        choices=["ram", "reg"],
-        required=True,
-        help="Type of fault to inject",
-    )
-    parser.add_argument(
         "--fault-location",
-        required=True,
+        required=False,
         help="Fault location (address for RAM, register name for REG)",
     )
     parser.add_argument(
-        "--bit-index", type=int, required=True, help="Bit index to flip"
+        "--bit-index", type=int, required=False, help="Bit index to flip"
     )
     parser.add_argument(
         "--observe-time",
@@ -408,9 +305,11 @@ def snapinject_custom(args):
     location = getattr(parsed, "fault_location")
     bit_index = getattr(parsed, "bit_index")
 
-    snapname = (
-        getattr(parsed, "snapshot_tag") if getattr(parsed, "snapshot_tag") else tmpname
-    )
+    if (location is None and bit_index is not None) and (location is not None and bit_index is None):
+        print("Error: --bit-index and --fault-location must be both specified or both omitted.")
+        return
+
+    snapname = getattr(parsed, "snapshot_tag") if getattr(parsed, "snapshot_tag") else tmpname
     if snapname == tmpname:
         qemu_hmp("savevm %s" % snapname)
         print("Create a tmp checkpoint %s" % snapname)
@@ -419,19 +318,20 @@ def snapinject_custom(args):
         print("Load checkpoint %s" % snapname)
 
     stime = time.time()
-    for _ in range(times):
-        step_ns(random.randint(mint, maxt))
-        if ftype == "ram":
-            try:
-                address = int(location, 16)
-                inject_bitflip(
-                    address, 1, bit_index
-                )  # Use 1 byte width and specify bit_index
-            except ValueError as e:
-                print("Error parsing RAM address: %s" % str(e))
-                return
-        elif ftype == "reg":
-            inject_register_bitflip(location, bit_index)
+    if location is None and bit_index is None:
+        autoinject_inner(times, mint, maxt, ftype)
+    else:
+        for _ in range(times):
+            step_ns(random.randint(mint, maxt))
+            if ftype == "ram":
+                try:
+                    address = int(location, 16)
+                    inject_bitflip(address, 1, bit_index)  # Use 1 byte width and specify bit_index
+                except ValueError as e:
+                    print("Error parsing RAM address: %s" % str(e))
+                    return
+            elif ftype == "reg":
+                inject_register_bitflip(location, bit_index)
     etime = time.time()
     duration = etime - stime
     print("Total injection duration: %.3f s" % duration)
@@ -447,7 +347,9 @@ def snapinject_custom(args):
         # Del this tmp VM checkpoint
         qemu_hmp("delvm %s" % tmpname)
         print("Delete tmp VM checkpoint")
-
+    
+    # Send a ret to qemu serial, make sure prompt is back
+    send_to_qemu_serial("\r")
 
 def parse_address_ranges_file(path):
     """
