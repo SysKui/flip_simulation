@@ -1,5 +1,6 @@
 import random
 import re
+import socket
 import threading
 
 from logger import log_single
@@ -125,6 +126,21 @@ class Registers(metaclass=RegistersMeta):
 def qemu_hmp(cmdstr):
     return gdb.execute("monitor %s" % cmdstr, to_string=True).strip()
 
+def send_to_qemu_serial(cmdstr: str):
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    # connect to unix socket file, if you change this address, make sure you change the same socket address 
+    # used in lava as well
+    socket_address = "/tmp/qemu-serial.sock"
+    client.connect(socket_address)
+    client.sendall(cmdstr.encode())
+
+    data = client.recv(1024).decode()
+    if data == "ACK":
+        print("send_to_qemu_serial: send message success")
+    else:
+        print("send_to_qemu_serial: send message fail, received:", data)
+    
+    client.close()
 
 def mtree():
     """
