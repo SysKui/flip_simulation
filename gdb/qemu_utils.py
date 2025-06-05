@@ -132,7 +132,13 @@ def send_to_qemu_serial(cmdstr: str):
     # connect to unix socket file, if you change this address, make sure you change the same socket address
     # used in lava as well
     socket_address = "/tmp/qemu-serial.sock"
-    client.connect(socket_address)
+    try:
+        client.connect(socket_address)
+    except Exception as e:
+        print(
+            f"Warning: send_to_qemu_serial fail, socket address {socket_address}, exception {e}"
+        )
+        return
     client.sendall(cmdstr.encode())
     client.close()
     return
@@ -450,9 +456,10 @@ def delayed_interrupt(delay_sec):
 
 
 def step_ns(ns):
-    print(">>> sending continue")
-    delayed_interrupt(float(ns) / 1e9)
-    gdb.execute("continue")
+    if ns > 0:
+        print(">>> sending continue")
+        delayed_interrupt(float(ns) / 1e9)
+        gdb.execute("continue")
 
 
 def parse_time(s):
@@ -467,10 +474,13 @@ def parse_time(s):
     for unit, mul in sorted(time_units.items()):
         if s.endswith(unit):
             try:
-                res = int(s[: -len(unit)])
+                if len(unit) == 0:
+                    res = int(s)
+                else:
+                    res = int(s[: -len(unit)])
             except ValueError:
                 continue  # try the next unit
-            if res <= 0:
-                raise ValueError("expected positive number of %s in %r" % (unit, s))
+            if res < 0:
+                raise ValueError("expected non-positive number of %s in %r" % (unit, s))
             return res * mul
     raise ValueError("could not parse units in %r" % s)

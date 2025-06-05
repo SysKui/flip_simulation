@@ -295,7 +295,7 @@ def snapinject(args):
         assert times >= 1, "fatal: times < 1"
         mint = parse_time(getattr(parsed, "min_interval"))
         maxt = parse_time(getattr(parsed, "max_interval"))
-        assert 0 < mint <= maxt, "fatal: min_interval > max_interval"
+        assert 0 <= mint <= maxt, "fatal: min_interval > max_interval"
         ftype = getattr(parsed, "fault_type")
         obtime = parse_time(getattr(parsed, "observe_time"))
     except (ValueError, AssertionError) as e:
