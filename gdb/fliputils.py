@@ -51,7 +51,7 @@ def stop_delayed(args):
         description="Stop the QEMU instance after a delay", prog="stop_delayed"
     )
     parser.add_argument(
-        "--ns", required=True, help="Nanoseconds to delay before stopping"
+        "--ns", type=float, required=True, help="Nanoseconds to delay before stopping"
     )
 
     parsed = parse_args_safely(parser, args)
@@ -222,6 +222,7 @@ def autoinject(args):
     duration = etime - stime
     print("Total injection duration: %.3f s" % duration)
 
+
 @BuildCmd
 def snapinject(args):
     """Record the current VM state, then automatically inject faults according to the user-provided fault count, fault location, and fault interval.
@@ -305,11 +306,17 @@ def snapinject(args):
     location = getattr(parsed, "fault_location")
     bit_index = getattr(parsed, "bit_index")
 
-    if (location is None and bit_index is not None) and (location is not None and bit_index is None):
-        print("Error: --bit-index and --fault-location must be both specified or both omitted.")
+    if (location is None and bit_index is not None) and (
+        location is not None and bit_index is None
+    ):
+        print(
+            "Error: --bit-index and --fault-location must be both specified or both omitted."
+        )
         return
 
-    snapname = getattr(parsed, "snapshot_tag") if getattr(parsed, "snapshot_tag") else tmpname
+    snapname = (
+        getattr(parsed, "snapshot_tag") if getattr(parsed, "snapshot_tag") else tmpname
+    )
     if snapname == tmpname:
         qemu_hmp("savevm %s" % snapname)
         print("Create a tmp checkpoint %s" % snapname)
@@ -326,7 +333,9 @@ def snapinject(args):
             if ftype == "ram":
                 try:
                     address = int(location, 16)
-                    inject_bitflip(address, 1, bit_index)  # Use 1 byte width and specify bit_index
+                    inject_bitflip(
+                        address, 1, bit_index
+                    )  # Use 1 byte width and specify bit_index
                 except ValueError as e:
                     print("Error parsing RAM address: %s" % str(e))
                     return
@@ -347,9 +356,10 @@ def snapinject(args):
         # Del this tmp VM checkpoint
         qemu_hmp("delvm %s" % tmpname)
         print("Delete tmp VM checkpoint")
-    
+
     # Send a ret to qemu serial, make sure prompt is back
     send_to_qemu_serial("\r")
+
 
 def parse_address_ranges_file(path):
     """

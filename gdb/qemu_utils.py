@@ -126,21 +126,17 @@ class Registers(metaclass=RegistersMeta):
 def qemu_hmp(cmdstr):
     return gdb.execute("monitor %s" % cmdstr, to_string=True).strip()
 
+
 def send_to_qemu_serial(cmdstr: str):
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    # connect to unix socket file, if you change this address, make sure you change the same socket address 
+    # connect to unix socket file, if you change this address, make sure you change the same socket address
     # used in lava as well
     socket_address = "/tmp/qemu-serial.sock"
     client.connect(socket_address)
     client.sendall(cmdstr.encode())
-
-    data = client.recv(1024).decode()
-    if data == "ACK":
-        print("send_to_qemu_serial: send message success")
-    else:
-        print("send_to_qemu_serial: send message fail, received:", data)
-    
     client.close()
+    return
+
 
 def mtree():
     """
@@ -309,8 +305,15 @@ def inject_bitflip(address, bytewidth, bit=None):
 
 
 def inject_register_bitflip(register_name, bit=None):
+    # flush the register cache and reset frame to avoid read old value.
+    gdb.execute("maint flush register-cache")
+    gdb.execute("frame 0")
+    print("flush register-cache and set frame 0")
     try:
         value = gdb.selected_frame().read_register(register_name)
+        print_str = gdb.execute(f"p ${register_name}", to_string=True)
+        print(f"print_str: {print_str}")
+        print(f"read {register_name} value {value}")
     except Exception as e:
         print(
             "[inject_register_bitflip] get exception when reading register value: ", e
@@ -318,6 +321,7 @@ def inject_register_bitflip(register_name, bit=None):
     # union aarch64v have 128 bits, but we can only flip 64 of them
     bitcount = min(8 * value.type.sizeof, 64)
     bitmask = (1 << bitcount) - 1
+    print(f"flip bit index {bit}")
     if bit is None:
         bit = random.randint(0, bitcount - 1)
 
@@ -362,6 +366,7 @@ def inject_register_bitflip(register_name, bit=None):
             oldval = int(value)
             newval = oldval ^ (1 << bit)
             gdb.execute("set $%s = %d" % (register_name, newval))
+            print(f"set ${register_name} = {newval}")
             rrval = int(gdb.selected_frame().read_register(register_name))
 
         if (newval & bitmask) == (rrval & bitmask):
@@ -427,9 +432,27 @@ def inject_instant_restart():
     # global_writer.write_other()
 
 
+def delayed_interrupt(delay_sec):
+    import time
+
+    def sleeper():
+        print(f">>> sleeping for {delay_sec} seconds")
+        time.sleep(delay_sec)
+
+        def do_interrupt():
+            print(">>> interrupting target")
+            gdb.execute("interrupt")
+
+        # 在线程中调用 GDB 安全方法
+        gdb.post_event(do_interrupt)
+
+    threading.Thread(target=sleeper, daemon=True).start()
+
+
 def step_ns(ns):
-    qemu_hmp("cont")
-    qemu_hmp("stop_delayed %s" % ns)
+    print(">>> sending continue")
+    delayed_interrupt(float(ns) / 1e9)
+    gdb.execute("continue")
 
 
 def parse_time(s):
