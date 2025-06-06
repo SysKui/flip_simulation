@@ -1,0 +1,52 @@
+name: Ruff (changed files only, auto-fix & push)
+
+on:
+  push:
+    paths: ["**/*.py", ".github/workflows/ci.yaml"]
+  pull_request:
+    paths: ["**/*.py", ".github/workflows/ci.yaml"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed *.py files
+        id: cf
+        uses: tj-actions/changed-files@v45
+        with:
+          files: "**/*.py"
+
+      - name: Ruff auto-format
+        uses: astral-sh/ruff-action@v1
+        with:
+          args: "format ${{ steps.cf.outputs.all_changed_files }}" 
+
+      - name: Commit Ruff fixes
+        if: steps.cf.outputs.any_changed == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: apply Ruff auto-fix"
+          file_pattern: "*.py"
+          skip_checkout: true          
+        env:
+          GIT_AUTO_COMMIT_IGNORE_WRITE_PERM_FAILURE: "true"
+
+
+      - name: Ruff verify clean
+        uses: astral-sh/ruff-action@v1
+        with:
+          args: "format --check ${{ steps.cf.outputs.all_changed_files }}"
+
+
+      - name: Skip - no Python changes
+        if: steps.cf.outputs.any_changed == 'false'
+        run: echo "No Python files changed - skipping Ruff."
