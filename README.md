@@ -10,7 +10,9 @@
 
 **gdb.txt** will be created after the execution of **gdb.py**. It is the gdb logging file.
 
-**gdb.sh** will be execute by gdb.py using python3 `subprocess.run()`
+**gdb.sh** will be executed by gdb.py using python3 `subprocess.run()`
+
+**find_phys_ranges.py** is a tool used to obtain the valid physical addresses of a user-space application.
 
 **gdb/fliputils.py** provides some user-defined commands for gdb.
 
@@ -124,7 +126,20 @@ Secondly run `gdb` in the host machine and run `source gdb/fliputils.py` in gdb 
 
 Thirdly use `autoinject` or `snapinject` in gdb to simulate the bits flip.
 
-**Note**: More details about the user-defined commands can be found in `gdb/fliputils.py`.
+**Note**: More details about the user-defined commands can be found in `gdb/fliputils.py`. 
+
+### Method-3 Use the user-defined commands in gdb to perform user-mode injection especially
+
+Firstly run `find_phys_ranges.py  > output.log 2>&1` in qemu guest machine to get `output.log`,which records the valid physical address ranges of the user-space running program.​
+
+Secondly run  `gdb` in the host machine and run `source gdb/fliputils.py` in gdb to load the user-defined commands.
+
+Thirdly, use `appinject` in GDB to simulate bitflips, specifying the number of flips and the log file (`output.log`) containing the valid physical address ranges of the user-space application.​
+
+**Note**:More details about the usage of the `find_phys_ranges.py` can be found in `find_phys_ranges.py`.
+
+**Note**: More details about how to use `appinject` can be found in `gdb/fliputils.py`. 
+
 
 ## Store the panic message when kernel panic
 
