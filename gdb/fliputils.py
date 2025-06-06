@@ -470,3 +470,16 @@ def appinject(args):
             inject_bitflip(address, 1)
         except Exception as e:
             print(f"Injection failed at 0x{address:x}: {e}")
+
+
+@BuildCmd
+def send_qemu_serial(args):
+    """Send `data` to QEMU serial"""
+    parser = argparse.ArgumentParser(
+        prog="send_qemu_serial", description="Send data to qemu serial"
+    )
+    parser.add_argument("--data", help="data sent to qemu serial", required=True)
+
+    parsed = parse_args_safely(parser, args)
+    data = parsed.data
+    send_to_qemu_serial(data)
