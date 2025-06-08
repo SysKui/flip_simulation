@@ -127,11 +127,8 @@ def qemu_hmp(cmdstr):
     return gdb.execute("monitor %s" % cmdstr, to_string=True).strip()
 
 
-def send_to_qemu_serial(cmdstr: str):
+def send_to_qemu_serial(cmdstr: str, socket_address):
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    # connect to unix socket file, if you change this address, make sure you change the same socket address
-    # used in lava as well
-    socket_address = "/tmp/qemu-serial.sock"
     try:
         client.connect(socket_address)
     except Exception as e:

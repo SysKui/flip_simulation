@@ -285,6 +285,11 @@ def snapinject(args):
         "--snapshot-tag",
         help="Optional snapshot tag (if not provided, creates temporary snapshot)",
     )
+    parser.add_argument(
+        "--serial-socket",
+        required=True,
+        help="The socket file used to send string to qemu serial",
+    )
 
     parsed = parse_args_safely(parser, args)
     if parsed is None:
@@ -358,7 +363,7 @@ def snapinject(args):
         print("Delete tmp VM checkpoint")
 
     # Send a ret to qemu serial, make sure prompt is back
-    send_to_qemu_serial("\r")
+    send_to_qemu_serial("\r", parsed.serial_socket)
 
 
 def parse_address_ranges_file(path):
