@@ -1,0 +1,35 @@
+name: Ruff Lint (changed files only)
+
+on:
+  push:
+    paths: ["**/*.py", ".github/workflows/ci.yaml"]
+  pull_request:
+    paths: ["**/*.py", ".github/workflows/ci.yaml"]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed *.py files
+        id: cf
+        uses: tj-actions/changed-files@v45
+        with:
+          files: "**/*.py"
+
+      - name: Ruff check (changed files)
+        if: steps.cf.outputs.any_changed == 'true'
+        uses: astral-sh/ruff-action@v1
+        with:
+          args: "check ${{ steps.cf.outputs.all_changed_files }}"
+
+      - name: Skip - no Python changes
+        if: steps.cf.outputs.any_changed == 'false'
+        run: echo "No Python files changed - skipping Ruff."
