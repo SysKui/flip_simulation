@@ -430,17 +430,15 @@ def appinject(args):
 
     """
 
-    parser = (
-        argparse.ArgumentParser(
-            description="Inject bitflips at address loaded from a file",
-            prog="appinject",
-        )
-        .add_argument(
-            "--total-fault-number", type=int, help="total fault number", required=True
-        )
-        .add_argument(
-            "--range-file", help="Description file of app memory map", required=True
-        )
+    parser = argparse.ArgumentParser(
+        description="Inject bitflips at address loaded from a file",
+        prog="appinject",
+    )
+    parser.add_argument(
+        "--total-fault-number", type=int, help="total fault number", required=True
+    )
+    parser.add_argument(
+        "--range-file", help="Description file of app memory map", required=True
     )
 
     parsed = parse_args_safely(parser, args)
