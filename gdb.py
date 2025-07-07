@@ -1,9 +1,9 @@
 # ==============================================================================
-# This file tests the frequency of failures in a machine after experiencing 
+# This file tests the frequency of failures in a machine after experiencing
 # multiple single event upsets over a long period of operation.
-# 
+#
 # Note: This file should run in Host machine.
-# 
+#
 # Author: Yexuan Yang <myemailyyxg@gmail.com>
 # Date: 2024-10-18
 # ==============================================================================
@@ -11,7 +11,7 @@
 from fliputils import *
 import time
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     Except there will be 10 bits flip occur in 1 GB RAM per month.
     For 5 years and 16 GB RAM machine in space, there will be 5 * 12 * 16 * 10 = 9600 times flip.
@@ -33,4 +33,3 @@ if __name__ == '__main__':
     autoinject_ram(10, 20, 100)
     et = time.time()
     print("10 duration %.3fs" % (et - st))
-    

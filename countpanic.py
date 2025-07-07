@@ -4,8 +4,16 @@ import pexpect
 import time
 import threading
 
+
 class SocketClient:
-    def __init__(self, server_address, need_revert=False, telnethost=None, telnetport=None, snapname=None):
+    def __init__(
+        self,
+        server_address,
+        need_revert=False,
+        telnethost=None,
+        telnetport=None,
+        snapname=None,
+    ):
         """
         :param server_address: socket file path
         :param need_revert: default is False, Is it necessary to use monitor to return to snapshot after qemu crashes? set True if it is
@@ -14,11 +22,11 @@ class SocketClient:
         :param snapname:  default is NoneIf need_revert is True, set it to the snapname reverted to after qemu paniced"""
         # panic count number
         self.panic = 0
-        # unix domain sockets 
+        # unix domain sockets
         self.server_address = server_address
         socket_family = socket.AF_UNIX
         socket_type = socket.SOCK_STREAM
-        
+
         self.need_revert = need_revert
 
         self.sock = socket.socket(socket_family, socket_type)
@@ -39,7 +47,7 @@ class SocketClient:
     def send(self, data: str):
         """Send str to socket server"""
         self.sock.sendall(data.encode())
-    
+
     def listen(self):
         """Listen the socket server and get the response, check if guest is paniced."""
         buffer = ""
@@ -60,14 +68,15 @@ class SocketClient:
                     if self.need_revert:
                         # revert to the snapshot.
                         self.monitor.send_command("loadvm " + self.snapname)
-    
+
     def __del__(self):
-        """Clean the socket and monitor. 
-        Note: It need_revert is True, monitor will create a tmporary snapshot and the tmporary snapshot can not be deleted, 
+        """Clean the socket and monitor.
+        Note: It need_revert is True, monitor will create a tmporary snapshot and the tmporary snapshot can not be deleted,
         because when the qemu shutdown, monitor will quit as well"""
         if self.need_revert:
             self.monitor.disconnect()
         self.sock.close()
+
 
 class TelnetClient:
     def __init__(self, host, port):
@@ -101,7 +110,7 @@ class TelnetClient:
             print("telnet connection closed.")
         else:
             raise ConnectionError("Not connected to the server")
-        
+
 
 class SshClient:
     def __init__(self, hostname, port, username, password):
@@ -115,10 +124,12 @@ class SshClient:
         """Connect to the SSH server"""
         while True:
             try:
-                self.connection = pexpect.spawn(f'ssh {self.username}@{self.hostname} -p {self.port}')
-                self.connection.expect('password:')
+                self.connection = pexpect.spawn(
+                    f"ssh {self.username}@{self.hostname} -p {self.port}"
+                )
+                self.connection.expect("password:")
                 self.connection.sendline(self.password)
-                self.connection.expect(f'{self.username}@')
+                self.connection.expect(f"{self.username}@")
                 print("SSH connection established.")
                 break
             except pexpect.exceptions.TIMEOUT:
@@ -134,11 +145,11 @@ class SshClient:
     def disconnect(self):
         """Disconnect from the SSH server"""
         if self.connection:
-            self.connection.sendline('exit')
+            self.connection.sendline("exit")
             self.connection.close()
             self.connection = None
             print("SSH connection closed.")
-    
+
     def check_ssh(self):
         """Check the ssh is usable"""
         print("Checking SSH service for the object machine")
@@ -159,6 +170,7 @@ def parse_json_objects(buffer):
             break
     return results, buffer
 
+
 def count_panic(sockfile):
     print("start listening...")
     socketc = SocketClient(sockfile)
@@ -166,7 +178,8 @@ def count_panic(sockfile):
     socketc.listen()
     print("panic count: " + str(socketc.panic))
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     ssh_client = SshClient("localhost", 2222, "root", "519ailab")
     ssh_client.check_ssh()
     # Qemu is already booted now.

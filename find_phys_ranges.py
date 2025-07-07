@@ -12,15 +12,14 @@ import time
 
 PAGE_SIZE = 4096
 PAGEMAP_ENTRY_BYTES = 8
-PFN_MASK = ((1 << 55) - 1)
-
+PFN_MASK = (1 << 55) - 1
 
 
 def find_pids_by_name(comm_name):
     """
     Match the process name precisely against /proc/[pid]/comm
     """
-    output = subprocess.check_output(['ps', '-eo', 'pid,comm'], encoding='utf-8')
+    output = subprocess.check_output(["ps", "-eo", "pid,comm"], encoding="utf-8")
     lines = output.splitlines()[1:]
     pids = []
     for line in lines:
@@ -39,7 +38,7 @@ def find_pids_by_cmdline_substring(keyword):
     """
     current_pid = os.getpid()
     script_name = os.path.basename(__file__)
-    output = subprocess.check_output(['ps', '-eo', 'pid,args'], encoding='utf-8')
+    output = subprocess.check_output(["ps", "-eo", "pid,args"], encoding="utf-8")
     lines = output.splitlines()[1:]
     pids = []
     for line in lines:
@@ -52,7 +51,7 @@ def find_pids_by_cmdline_substring(keyword):
                 pid = int(pid_str)
                 # Excludes itself and scripts with the same name
                 if pid == current_pid or script_name in cmdline:
-                    continue  
+                    continue
                 pids.append(pid)
             except:
                 continue
@@ -63,7 +62,7 @@ def find_all_descendants(pids):
     """
     Starting from the main PID list, recursively search all child processes.
     """
-    output = subprocess.check_output(['ps', '-eo', 'pid,ppid'], encoding='utf-8')
+    output = subprocess.check_output(["ps", "-eo", "pid,ppid"], encoding="utf-8")
     child_map = {}
     for line in output.splitlines()[1:]:
         parts = line.strip().split()
@@ -82,6 +81,7 @@ def find_all_descendants(pids):
                 queue.append(child)
     return sorted(all_pids)
 
+
 def parse_maps(pid):
     ranges = []
     try:
@@ -93,11 +93,12 @@ def parse_maps(pid):
                 start = int(m.group(1), 16)
                 end = int(m.group(2), 16)
                 perms = m.group(3)
-                if 'r' in perms:  # 可读段才读取
+                if "r" in perms:  # 可读段才读取
                     ranges.append((start, end))
     except Exception as e:
         print(f" Failed to parse maps for PID {pid}: {e}")
     return ranges
+
 
 def parse_rw_anon_maps(pid):
     """只提取匿名 rw-p 段（无文件名）"""
@@ -105,13 +106,21 @@ def parse_rw_anon_maps(pid):
     try:
         with open(f"/proc/{pid}/maps") as f:
             for line in f:
-                m = re.match(r"([0-9a-f]+)-([0-9a-f]+)\s+([rwxps-]+)\s+[0-9a-f]+\s+[0-9a-f:]+\s+\d+\s*(.*)", line)
+                m = re.match(
+                    r"([0-9a-f]+)-([0-9a-f]+)\s+([rwxps-]+)\s+[0-9a-f]+\s+[0-9a-f:]+\s+\d+\s*(.*)",
+                    line,
+                )
                 if not m:
                     continue
                 start, end = int(m.group(1), 16), int(m.group(2), 16)
                 perms = m.group(3)
                 pathname = m.group(4)
-                if 'r' in perms and 'w' in perms and 'p' in perms and pathname.strip() == "":
+                if (
+                    "r" in perms
+                    and "w" in perms
+                    and "p" in perms
+                    and pathname.strip() == ""
+                ):
                     ranges.append((start, end))
     except Exception as e:
         print(f" Failed to parse maps for PID {pid}: {e}")
@@ -140,15 +149,15 @@ def read_pagemap_entries(pid, vaddrs):
     return results
 
 
-
 def get_phys_for_pid(pid):
     vaddrs = []
-    for (start, end) in parse_maps(pid):
+    for start, end in parse_maps(pid):
         for addr in range(start, end, PAGE_SIZE):
             vaddrs.append(addr)
 
     entries = read_pagemap_entries(pid, vaddrs)
     return entries
+
 
 def merge_ranges(ranges):
     """
@@ -167,11 +176,7 @@ def merge_ranges(ranges):
     return merged
 
 
-
-
-
 if __name__ == "__main__":
-
     """
     Options: 
             -f <app_execute_command>  Execute programs that require multiple commands or complex parameters (such as Python scripts).
@@ -180,13 +185,15 @@ if __name__ == "__main__":
             Execute a single simple command (such as a browser, a program without parameters).
                 Format:program_name
     """
-    
+
     if os.geteuid() != 0:
         print(" Please run as root.")
         sys.exit(1)
 
     if len(sys.argv) < 2:
-        print(f"Usage:\n  sudo {sys.argv[0]} <comm>\n  sudo {sys.argv[0]} -f <keyword_in_cmdline>")
+        print(
+            f"Usage:\n  sudo {sys.argv[0]} <comm>\n  sudo {sys.argv[0]} -f <keyword_in_cmdline>"
+        )
         sys.exit(1)
 
     if len(sys.argv) == 2:
@@ -196,7 +203,9 @@ if __name__ == "__main__":
         keyword = sys.argv[2]
         base_pids = find_pids_by_cmdline_substring(keyword)
     else:
-        print(f" Invalid arguments.\nUsage:\n  sudo {sys.argv[0]} <comm>\n  sudo {sys.argv[0]} -f <keyword_in_cmdline>")
+        print(
+            f" Invalid arguments.\nUsage:\n  sudo {sys.argv[0]} <comm>\n  sudo {sys.argv[0]} -f <keyword_in_cmdline>"
+        )
         sys.exit(1)
 
     if not base_pids:
@@ -208,9 +217,8 @@ if __name__ == "__main__":
     for pid in all_pids:
         entries = get_phys_for_pid(pid)
         for vaddr, paddr in entries:
-            all_phys.add((paddr, paddr + PAGE_SIZE)) 
+            all_phys.add((paddr, paddr + PAGE_SIZE))
 
     merged_ranges = merge_ranges(all_phys)
     for start, end in merged_ranges:
         print(f"  0x{start:016x}-0x{end:016x}")
-
